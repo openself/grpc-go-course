@@ -4,6 +4,14 @@ package calc;
 
 option go_package = "calcpb";
 
+service CalculatorService {
+    rpc Add (CalcSumRequest) returns (CalcSumResponse) {};
+    // Prime Number Decomposition
+    rpc CalcPND (CalcPNDRequest) returns (stream CalcPNDResponse) {};
+    // Average
+    rpc CalcAvg (stream CalcAvgRequest) returns (CalcAvgResponse) {};
+}
+
 message AdditionArgs {
     repeated int32 arg = 1;
 }
@@ -24,8 +32,10 @@ message CalcPNDResponse {
     int32 primeFactor = 1;
 }
 
-service CalculatorService {
-    rpc Add (CalcSumRequest) returns (CalcSumResponse) {};
-    // Prime Number Decomposition
-    rpc CalcPND (CalcPNDRequest) returns (stream CalcPNDResponse) {};
+message CalcAvgRequest {
+    int32 number = 1;
+}
+
+message CalcAvgResponse {
+    float avg = 1;
 }

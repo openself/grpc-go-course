@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 	"io"
 	"log"
+	"time"
 )
 
 func main() {
@@ -20,6 +21,8 @@ func main() {
 	callAdditionService(clnt)
 
 	callDecompositionService(clnt)
+
+	callAvgService(clnt)
 }
 
 func callAdditionService(clnt calcpb.CalculatorServiceClient) {
@@ -60,4 +63,29 @@ func callDecompositionService(clnt calcpb.CalculatorServiceClient) {
 		log.Printf("factor = %d; ", factor.GetPrimeFactor())
 	}
 	log.Println("The end")
+}
+
+func callAvgService(clnt calcpb.CalculatorServiceClient) {
+	numbers := []int32{1, 2, 3, 4}
+	msg := &calcpb.CalcAvgRequest{}
+	reqStream, err := clnt.CalcAvg(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to call CalcAvg RPC: %v", err)
+	}
+
+	for _, number := range numbers {
+		msg.Number = number
+		log.Println("number", number)
+		err := reqStream.Send(msg)
+		if err != nil {
+			log.Fatalf("Error sending message: %v", err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	resp, err := reqStream.CloseAndRecv()
+	if err != nil {
+		log.Fatalf("Failed to get response from CalcAvg RPC: %v", err)
+	}
+	log.Println("Avg = ", resp.GetAvg())
 }

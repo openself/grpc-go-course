@@ -4,12 +4,27 @@ import (
 	"../calcpb"
 	"context"
 	"google.golang.org/grpc"
+	"io"
 	"log"
 	"net"
 	"time"
 )
 
 type server struct{}
+
+func main() {
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	srv := grpc.NewServer()
+	calcpb.RegisterCalculatorServiceServer(srv, &server{})
+	log.Println("Listen on :50051")
+	if err := srv.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+}
 
 func (*server) Add(ctx context.Context, req *calcpb.CalcSumRequest) (*calcpb.CalcSumResponse, error) {
 	args := req.GetArgs()
@@ -48,16 +63,25 @@ func (*server) CalcPND(req *calcpb.CalcPNDRequest,
 	return nil
 }
 
-func main() {
-	lis, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+func (*server) CalcAvg(stream calcpb.CalculatorService_CalcAvgServer) error {
+	var total, count int32
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			// we have finished reading the client stream
+			if count == 0 {
+				count = 1
+			}
+			res := &calcpb.CalcAvgResponse{
+				Avg: float32(total) / float32(count),
+			}
+			return stream.SendAndClose(res)
+		}
+		if err != nil {
+			log.Fatalf("Error reading stream: %v", err)
+		}
+		total += req.GetNumber()
+		count++
 	}
-
-	srv := grpc.NewServer()
-	calcpb.RegisterCalculatorServiceServer(srv, &server{})
-	log.Println("Listen on :50051")
-	if err := srv.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
-	}
+	return nil
 }
