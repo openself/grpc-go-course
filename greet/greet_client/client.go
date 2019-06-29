@@ -4,6 +4,7 @@ import (
 	"../greetpb"
 	"context"
 	"google.golang.org/grpc"
+	"io"
 	"log"
 )
 
@@ -17,6 +18,8 @@ func main() {
 	clnt := greetpb.NewGreetServiceClient(conn)
 
 	callUnaryGreeting(clnt)
+
+	callServerSreamingGreeting(clnt)
 }
 
 func callUnaryGreeting(clnt greetpb.GreetServiceClient) {
@@ -32,4 +35,28 @@ func callUnaryGreeting(clnt greetpb.GreetServiceClient) {
 	}
 
 	log.Println("Response:", res.GetResult())
+}
+
+func callServerSreamingGreeting(clnt greetpb.GreetServiceClient) {
+	req := &greetpb.GreetManyTimesRequest{
+		Greeting: &greetpb.Greeting{
+			FirstName: "openself",
+		},
+	}
+	resStream, err := clnt.GreetManyTimes(context.Background(), req)
+	if err != nil {
+		log.Fatalf("Failed to call GreetManyTimes RPC: %v", err)
+	}
+
+	for {
+		msg, err := resStream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatalf("Error reading GreetManyTimes stream : %v", err)
+		}
+		log.Println("Response:", msg.GetResult())
+	}
+
 }
