@@ -26,7 +26,7 @@ func main() {
 	}
 }
 
-func (*server) Add(ctx context.Context, req *calcpb.CalcSumRequest) (*calcpb.CalcSumResponse, error) {
+func (*server) CalcSum(ctx context.Context, req *calcpb.CalcSumRequest) (*calcpb.CalcSumResponse, error) {
 	args := req.GetArgs()
 	var sum, a int32
 	for _, a = range args.GetArg() {
@@ -82,6 +82,31 @@ func (*server) CalcAvg(stream calcpb.CalculatorService_CalcAvgServer) error {
 		}
 		total += req.GetNumber()
 		count++
+	}
+	return nil
+}
+
+func (*server) CalcMax(stream calcpb.CalculatorService_CalcMaxServer) error {
+	var max int32
+	res := &calcpb.CalcMaxResponse{}
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			log.Fatalf("Error reading stream: %v", err)
+		}
+		number := req.GetNumber()
+		if number <= max {
+			continue
+		}
+		max = number
+		res.Max = max
+		err = stream.Send(res)
+		if err != nil {
+			log.Fatalf("Error sending message: %v", err)
+		}
 	}
 	return nil
 }

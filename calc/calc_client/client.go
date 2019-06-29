@@ -23,6 +23,8 @@ func main() {
 	callDecompositionService(clnt)
 
 	callAvgService(clnt)
+
+	callMaxService(clnt)
 }
 
 func callAdditionService(clnt calcpb.CalculatorServiceClient) {
@@ -33,7 +35,7 @@ func callAdditionService(clnt calcpb.CalculatorServiceClient) {
 			Arg: args,
 		},
 	}
-	res, err := clnt.Add(context.Background(), req)
+	res, err := clnt.CalcSum(context.Background(), req)
 	if err != nil {
 		log.Fatalf("Failed to call Add service: %v", err)
 	}
@@ -88,4 +90,51 @@ func callAvgService(clnt calcpb.CalculatorServiceClient) {
 		log.Fatalf("Failed to get response from CalcAvg RPC: %v", err)
 	}
 	log.Println("Avg = ", resp.GetAvg())
+}
+
+func callMaxService(clnt calcpb.CalculatorServiceClient) {
+	// 1. Create a stream by invoking the client
+	bdStream, err := clnt.CalcMax(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to call CalcMax RPC: %v", err)
+	}
+
+	waitChan := make(chan struct{})
+
+	// 2. Send a bunch of messages to the server (goroutine)
+	numbers := []int32{1, 5, 3, 6, 2, 20, 1}
+	msg := &calcpb.CalcMaxRequest{}
+	go func() {
+		for _, number := range numbers {
+			msg.Number = number
+			log.Println("current number", number)
+			err := bdStream.Send(msg)
+			if err != nil {
+				log.Fatalf("Error sending message: %v", err)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		err := bdStream.CloseSend()
+		if err != nil {
+			close(waitChan)
+		}
+	}()
+
+	// 3. Receive a bunch of messages from the server (goroutine)
+	go func() {
+		for {
+			msg, err := bdStream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatalf("Error reading BiDiGreet stream : %v", err)
+			}
+			log.Println("Maximum =", msg.GetMax())
+		}
+		close(waitChan)
+	}()
+
+	// 4. Block until everything is done
+	<-waitChan
 }

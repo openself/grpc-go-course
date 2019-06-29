@@ -5,11 +5,13 @@ package calc;
 option go_package = "calcpb";
 
 service CalculatorService {
-    rpc Add (CalcSumRequest) returns (CalcSumResponse) {};
+    rpc CalcSum (CalcSumRequest) returns (CalcSumResponse) {};
     // Prime Number Decomposition
     rpc CalcPND (CalcPNDRequest) returns (stream CalcPNDResponse) {};
     // Average
     rpc CalcAvg (stream CalcAvgRequest) returns (CalcAvgResponse) {};
+    // Maximum
+    rpc CalcMax (stream CalcMaxRequest) returns (stream CalcMaxResponse) {};
 }
 
 message AdditionArgs {
@@ -38,4 +40,12 @@ message CalcAvgRequest {
 
 message CalcAvgResponse {
     float avg = 1;
+}
+
+message CalcMaxRequest {
+    int32 number = 1;
+}
+
+message CalcMaxResponse {
+    int32 max = 1;
 }

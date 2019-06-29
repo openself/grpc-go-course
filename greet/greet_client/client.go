@@ -23,6 +23,8 @@ func main() {
 	callServerSreamingGreeting(clnt)
 
 	callClientSreamingGreeting(clnt)
+
+	callBiDiSreamingGreeting(clnt)
 }
 
 func callUnaryGreeting(clnt greetpb.GreetServiceClient) {
@@ -96,4 +98,60 @@ func callClientSreamingGreeting(clnt greetpb.GreetServiceClient) {
 		log.Fatalf("Failed to get response from LongGreet RPC: %v", err)
 	}
 	log.Println("Response:", resp.GetResult())
+}
+
+func callBiDiSreamingGreeting(clnt greetpb.GreetServiceClient) {
+	// 1. Create a stream by invoking the client
+	bdStream, err := clnt.BiDiGreet(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to call BiDiGreet RPC: %v", err)
+	}
+
+	waitChan := make(chan struct{})
+
+	// 2. Send a bunch of messages to the server (goroutine)
+	names := []string{
+		"Mark",
+		"Lucy",
+		"John",
+		"Anna",
+	}
+	msg := &greetpb.BiDiGreetRequest{
+		Greeting: &greetpb.Greeting{
+			FirstName: "",
+		},
+	}
+	go func() {
+		for _, name := range names {
+			msg.Greeting.FirstName = name
+			log.Println("Greet", name)
+			err := bdStream.Send(msg)
+			if err != nil {
+				log.Fatalf("Error sending message: %v", err)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		err := bdStream.CloseSend()
+		if err != nil {
+			close(waitChan)
+		}
+	}()
+
+	// 3. Receive a bunch of messages from the server (goroutine)
+	go func() {
+		for {
+			msg, err := bdStream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatalf("Error reading BiDiGreet stream : %v", err)
+			}
+			log.Println("Response:", msg.GetResult())
+		}
+		close(waitChan)
+	}()
+
+	// 4. Block until everything is done
+	<-waitChan
 }
